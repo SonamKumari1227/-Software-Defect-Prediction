@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Data (downloaded by scripts/download_data.py - not committed)
+data/raw/*/
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Generated results (re-created by the pipeline)
+results/*
+!results/.gitkeep
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

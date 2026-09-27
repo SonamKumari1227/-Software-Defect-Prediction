@@ -1,0 +1,22 @@
+13:37:41 | INFO    | Dataset KC1 (cleaned) already present at C:\Users\erson\Downloads\mini-project\software-defect-prediction\data\raw\cleaned\KC1.arff (skip download)
+13:37:41 | INFO    | Loaded KC1 [cleaned]: 1162 rows x 21 features | defective = 294 (25.3%)
+13:37:41 | INFO    | Removed 0 duplicate rows
+13:37:44 | INFO    | EDA for KC1 complete -> C:\Users\erson\Downloads\mini-project\software-defect-prediction\results\KC1\eda (4 figures)
+{
+  "dataset": "KC1",
+  "rows_raw": 1162,
+  "rows_after_cleaning": 1162,
+  "duplicates_removed": 0,
+  "n_features": 21,
+  "missing_values_total": 0,
+  "features_with_missing": [],
+  "defective_count": 294,
+  "defective_ratio": 0.25301204819277107,
+  "imbalance_ratio": 2.9523809523809526,
+  "figures": [
+    "class_distribution.png",
+    "correlation_heatmap.png",
+    "feature_distributions.png",
+    "target_correlation.png"
+  ]
+}

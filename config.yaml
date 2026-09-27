@@ -1,0 +1,71 @@
+# =============================================================================
+# Software Defect Prediction - Project Configuration
+# -----------------------------------------------------------------------------
+# All tunable settings live here so that experiments are reproducible and no
+# "magic numbers" are buried in the source code. Paths are relative to the
+# project root (the directory that contains this file).
+# =============================================================================
+
+project_name: software-defect-prediction
+random_seed: 42
+
+datasets:
+  # Datasets from the NASA Metrics Data Program (MDP) hosted in the PROMISE
+  # repository. All four are widely used benchmarks in defect-prediction papers.
+  names: [KC1, JM1, PC1, CM1]
+  default: KC1
+
+  # Which version of the NASA data to use:
+  #   cleaned  -> Shepperd et al. (2013) "D''" versions with duplicates,
+  #               inconsistent and implausible rows removed (recommended)
+  #   original -> raw MDP files as distributed by NASA (contain ~40% duplicates in KC1)
+  variant: cleaned
+
+  # Primary download source: a well-known GitHub mirror of the NASA MDP data.
+  github_base_urls:
+    cleaned: https://raw.githubusercontent.com/klainfo/NASADefectDataset/master/CleanedData/MDP/D%27%27
+    original: https://raw.githubusercontent.com/klainfo/NASADefectDataset/master/OriginalData/MDP
+
+  # Fallback: OpenML dataset names (used only if the GitHub download fails).
+  openml_names:
+    KC1: kc1
+    JM1: jm1
+    PC1: pc1
+    CM1: cm1
+
+  raw_dir: data/raw
+  processed_dir: data/processed
+
+preprocessing:
+  test_size: 0.20              # hold-out fraction for the final test set
+  remove_duplicates: true      # NASA MDP data is known to contain duplicate rows
+  drop_constant_features: true # zero-variance columns carry no information
+  impute_strategy: median      # PC1 / CM1 contain a few missing values ('?')
+  log_transform: true          # log1p on all metrics (they are heavily right-skewed)
+  scaler: standard             # standard | minmax | none
+  balance: smote               # none | smote | class_weight
+
+cross_validation:
+  n_splits: 5
+  n_repeats: 1                 # RepeatedStratifiedKFold; set 2-3 for smoother estimates (slower)
+  n_jobs: 1                    # parallel folds; keep 1 on Windows (libsvm can crash in worker processes)
+  scoring: [accuracy, precision, recall, f1, roc_auc]
+
+models:
+  # Names must match the keys in sdp/models.py::MODEL_REGISTRY
+  - logistic_regression
+  - decision_tree
+  - random_forest
+  - gradient_boosting
+  - svm
+  - knn
+  - naive_bayes
+  - mlp
+
+# Optional light-weight hyper-parameter search (RandomizedSearchCV) for the
+# tree ensembles and SVM. Disabled by default to keep run-time short.
+tuning:
+  enabled: false
+  n_iter: 15
+
+results_dir: results

@@ -1,0 +1,3 @@
+   defect_probability  predicted_defective
+0              0.0564                    0
+1              0.6986                    1
