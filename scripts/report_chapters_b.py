@@ -144,9 +144,10 @@ def ch13_testing(b: ReportBuilder) -> None:
         "missing-value path; and to the target-normalisation logic, where cases were constructed for "
         "each of the class-attribute names that occur across the four files.")
     b.h3("13.2.3  Unit testing")
-    b.p("Unit tests examine individual functions in isolation. Six of the nine automated tests are "
-        "unit tests, covering parsing, target encoding, duplicate and constant-column removal, "
-        "stratification and the metric computations.")
+    b.p("Unit tests examine individual functions in isolation. Eleven of the sixteen automated tests "
+        "are unit tests, covering parsing, target encoding, duplicate and constant-column removal, "
+        "stratification, the metric computations and the Halstead derivations performed by the "
+        "web form.")
     b.h3("13.2.4  Integration testing")
     b.p("Integration tests examine the interaction between components. The principal integration test "
         "constructs a synthetic dataset with known statistical properties and drives the complete "
@@ -192,13 +193,30 @@ def ch13_testing(b: ReportBuilder) -> None:
               "Valid predictions and metrics within [0, 1]", "Pass"],
              ["T9", "test_pipeline_is_deterministic",
               "Two identical runs produce identical results",
-              "F1 scores equal to within floating-point tolerance", "Pass"]],
+              "F1 scores equal to within floating-point tolerance", "Pass"],
+             ["T10", "test_halstead_length_is_the_sum_of_the_token_counts",
+              "Form derives N = N1 + N2 correctly", "Length equals 45 for the sample counts", "Pass"],
+             ["T11", "test_halstead_volume_matches_the_definition",
+              "Form derives V = N log2(n)", "Matches the closed-form value", "Pass"],
+             ["T12", "test_halstead_difficulty_and_level_are_reciprocal",
+              "D and L are mutually consistent", "L equals 1/D", "Pass"],
+             ["T13", "test_halstead_effort_time_and_bugs_follow_from_volume_and_difficulty",
+              "E, T and B follow from V and D", "All three match their definitions", "Pass"],
+             ["T14", "test_degenerate_counts_do_not_raise",
+              "Zero token counts do not divide by zero", "All derived measures return zero", "Pass"],
+             ["T15", "…[gradient_boosting] single-module scoring",
+              "A saved pipeline scores one hand-entered row",
+              "Probability within [0, 1]; complex module ranked above simple", "Pass"],
+             ["T16", "…[random_forest] single-module scoring",
+              "As above for the second ensemble",
+              "Probability within [0, 1]; complex module ranked above simple", "Pass"]],
             col_widths=[0.4, 1.75, 1.6, 1.75, 0.5], font_size=9)
 
     b.h2("13.4  Test Execution and Result")
-    b.p("The complete suite was executed with the pytest framework. All nine test cases pass, as shown "
-        "in Figure 13.1. The parametrised integration test expands internally to three executions, one "
-        "per balancing strategy, each covering all eight classifiers.")
+    b.p("The complete suite was executed with the pytest framework. All sixteen test cases pass, as "
+        "shown in Figure 13.1. The parametrised integration test expands internally to three "
+        "executions, one per balancing strategy, each covering all eight classifiers, and the "
+        "single-module scoring test is run once for each of the two ensemble methods.")
     b.figure(FIG / "shot_pytest.png", "13.1", "Execution of the automated test suite", width_in=5.6)
 
     b.h2("13.5  Validation of the Absence of Information Leakage")
@@ -217,7 +235,9 @@ def ch13_testing(b: ReportBuilder) -> None:
     b.h2("13.6  Limitations of the Testing Performed")
     b.p("The suite does not test the network download path, which is exercised manually because "
         "automating it would make the tests depend on an external service. It does not test the "
-        "visual correctness of the generated figures, which was verified by inspection. Numerical "
+        "visual correctness of the generated figures, which was verified by inspection, nor the "
+        "layout of the web interface, which was verified by driving a browser against the running "
+        "application and inspecting the captures reproduced in Chapter 14. Numerical "
         "agreement with an independent implementation of the same algorithms was not attempted; the "
         "metric implementations are those of scikit-learn, which is itself extensively tested.")
 
@@ -270,7 +290,73 @@ def ch14_screenshots(b: ReportBuilder) -> None:
     b.figure(FIG / "shot_predict.png", "14.5",
              "Scoring two previously unseen modules with the trained model", width_in=5.6)
 
-    b.h2("14.6  Generated Artefacts")
+    b.h2("14.6  The Web Interface")
+    b.p("The command-line tools shown above serve the experiment. To make the trained models usable "
+        "by a reviewer who is not working from a terminal, the web interface described in Section "
+        "6.10 was built with Streamlit. It is started with the command "
+        "streamlit run app/streamlit_app.py and served on the local machine at port 8501. The "
+        "screenshots that follow were captured from the running application.")
+
+    b.h3("14.6.1  The metric-entry form")
+    b.p("Figure 14.6 shows the interface as it first appears. The left-hand panel selects the "
+        "training dataset, the classifier and the decision threshold, and reports the performance "
+        "that the selected model achieved on the held-out test set, so that the user can see how "
+        "much confidence the prediction deserves. The main panel holds the entry form, in which the "
+        "metrics are grouped into size measures, McCabe complexity measures and Halstead vocabulary "
+        "counts. Every field is bounded by the range observed in the training data and carries a "
+        "short explanation of the quantity it holds, shown on hover.")
+    b.p("Two conveniences are provided. A preset selector fills the form with the tenth percentile, "
+        "the median or the ninetieth percentile of the training data, giving a realistic starting "
+        "point that the user then edits. A checkbox causes the eight dependent Halstead measures to "
+        "be derived from the four basic operator and operand counts, which keeps the submitted values "
+        "mutually consistent; a user entering values by hand could otherwise supply a volume and a "
+        "difficulty that no real program could exhibit simultaneously.")
+    b.figure(FIG / "shot_app_form.png", "14.6",
+             "The metric-entry form of the web interface, showing the configuration panel, "
+             "the preset selector and the grouped input fields")
+
+    b.h3("14.6.2  A module predicted to be non-defective")
+    b.p("Figure 14.7 shows the result for a small, simple module: twenty lines of code at the tenth "
+        "percentile of the dataset, a cyclomatic complexity of one and a modest operator vocabulary. "
+        "Gradient Boosting returns a defect probability of 6.3 per cent, which falls below the "
+        "threshold of 0.50, so the module is classified as non-defective and placed in the low risk "
+        "band. The table beneath the verdict places each entered metric against the median of the "
+        "training data and gives its percentile, which tells the user not merely what the model "
+        "decided but where the module sits in the population the model was trained on.")
+    b.figure(FIG / "shot_app_clean.png", "14.7",
+             "Prediction for a small, simple module: 6.3 per cent defect probability, "
+             "classified as non-defective")
+
+    b.h3("14.6.3  A module predicted to be defective")
+    b.p("Figure 14.8 shows the same model applied to a large, complex module at the ninetieth "
+        "percentile of the dataset: seventy-three lines of code, a cyclomatic complexity of ten, "
+        "eighteen branches and a vocabulary of fifty-one distinct tokens. The predicted probability "
+        "rises to 82.8 per cent, the module is classified as defective and is placed in the very "
+        "high risk band, and the comparison table shows every metric at or above the ninetieth "
+        "percentile of the training data.")
+    b.p("The contrast between Figures 14.7 and 14.8 is the behaviour that Chapter 15 quantifies: "
+        "size and complexity are genuinely associated with defect-proneness, and the model has "
+        "learned that association. It is worth restating that a probability of 82.8 per cent is not "
+        "a guarantee. At the operating point used here the model attains a precision of 0.509, so "
+        "roughly one flagged module in two is a false alarm, and the output should be read as a "
+        "ranking for review rather than a verdict.")
+    b.figure(FIG / "shot_app_defective.png", "14.8",
+             "Prediction for a large, complex module: 82.8 per cent defect probability, "
+             "classified as defective")
+
+    b.h3("14.6.4  Effect of the configuration panel")
+    b.p("The configuration panel, reproduced on its own in Figure 14.9, is what makes the interface "
+        "useful for exploring the findings of this study rather than merely applying them. Changing "
+        "the classifier re-scores the same module with a different algorithm, which demonstrates the "
+        "clustering reported in Section 15.2. Moving the decision threshold slider shifts the "
+        "operating point between the conservative and sensitive profiles discussed in Section 15.6, "
+        "without retraining anything. Changing the dataset loads a model trained on a different "
+        "project, and the panel then reports that model's own performance figures.")
+    b.figure(FIG / "shot_app_sidebar.png", "14.9",
+             "The configuration panel, showing dataset, classifier and threshold selection "
+             "together with the performance of the selected model", width_in=2.6)
+
+    b.h2("14.7  Generated Artefacts")
     b.p("Each execution writes its results beneath a directory named after the dataset. The directory "
         "contains the exploratory outputs, the generated figures, the serialised pipelines for all "
         "eight classifiers, the metric tables in CSV and JSON form, and a summary recording the "
@@ -771,14 +857,30 @@ def ch16_coding(b: ReportBuilder, detail: str = "standard") -> None:
             "and then for each classifier cross-validate, fit, evaluate, persist and plot.")
         b.code(src("scripts/run_pipeline.py", 52, 122))
 
+    if detail in ("standard", "full"):
+        b.h2("16.6  Web Interface: Model Loading and Halstead Derivation "
+             "(app/streamlit_app.py)")
+        b.p("The cached loaders and the function that derives the dependent Halstead measures "
+            "from the four basic counts. The caching decorators matter: without them the "
+            "pipeline would be deserialised and the training data reloaded on every keystroke, "
+            "because Streamlit re-executes the script from the top on each interaction.")
+        b.code(src("app/streamlit_app.py", 85, 127))
+
+        b.h2("16.7  Web Interface: Form Construction and Prediction "
+             "(app/streamlit_app.py)")
+        b.p("The metric-entry form and the prediction block. Note the assignment into the "
+            "session state before the widgets are created, which is what allows the preset "
+            "selector to change values the user has already seen.")
+        b.code(src("app/streamlit_app.py", 205, 262))
+
     if detail == "full":
-        b.h2("16.6  Dataset Acquisition and ARFF Parsing (sdp/data_loader.py)")
+        b.h2("16.8  Dataset Acquisition and ARFF Parsing (sdp/data_loader.py)")
         b.code(src("sdp/data_loader.py", 74, 153))
 
-        b.h2("16.7  Prediction Interface (scripts/predict.py)")
+        b.h2("16.9  Prediction Interface (scripts/predict.py)")
         b.code(src("scripts/predict.py", 16, 59))
 
-        b.h2("16.8  Automated Test Suite (tests/test_pipeline.py)")
+        b.h2("16.10  Automated Test Suite (tests/test_pipeline.py)")
         b.code(src("tests/test_pipeline.py", 38, 119))
 
 
@@ -995,7 +1097,8 @@ def ch19_future(b: ReportBuilder) -> None:
         "would materially improve the acceptability of the tool in practice.")
 
     b.h2("19.9  Deployment as a Development-Workflow Tool")
-    b.p("The prediction interface implemented here operates on a file of metrics. A production version "
+    b.p("The web interface described in Section 6.10 delivers the first stage of this: a trained model can now be applied to a module by anyone, without a terminal and without programming. Two steps remain before it is part of a working development process. The metrics must be produced automatically by a static-analysis tool rather than typed in, and the predictions must be delivered where the work happens rather than in a separate application.")
+    b.p("The command-line prediction interface operates on a file of metrics. A production version "
         "would integrate with a static-analysis tool and a version-control system, compute the metrics "
         "for changed files automatically on each commit, and present the ranked risk list within the "
         "code-review interface or the continuous-integration report. The retraining of the model as "

@@ -14,6 +14,7 @@ Template conventions reproduced here:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import docx
@@ -44,6 +45,7 @@ class ReportBuilder:
         self._clear_body()
         self.figures: list[tuple[str, str]] = []   # (number, caption)
         self.tables: list[tuple[str, str]] = []    # (number, caption)
+        self._bookmark_id = 1000
 
     # ------------------------------------------------------------------ #
     # setup
@@ -55,6 +57,61 @@ class ReportBuilder:
             if child.tag == qn("w:sectPr"):
                 continue
             body.remove(child)
+
+    # ------------------------------------------------------------------ #
+    # bookmarks and page-reference fields
+    #
+    # Word, not this script, computes the page numbers. Each heading and
+    # caption carries a bookmark; each Contents / List row carries a PAGEREF
+    # field pointing at it. ``enable_field_update`` then asks Word to resolve
+    # every field when the document is opened.
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def slug(prefix: str, text: str) -> str:
+        """A legal, stable Word bookmark name (letters, digits, underscore)."""
+        clean = re.sub(r"[^0-9A-Za-z]+", "_", text).strip("_")
+        return f"{prefix}{clean}"[:38]
+
+    def bookmark(self, paragraph, name: str) -> None:
+        self._bookmark_id += 1
+        start = OxmlElement("w:bookmarkStart")
+        start.set(qn("w:id"), str(self._bookmark_id))
+        start.set(qn("w:name"), name)
+        end = OxmlElement("w:bookmarkEnd")
+        end.set(qn("w:id"), str(self._bookmark_id))
+        paragraph._p.insert(0, start)
+        paragraph._p.append(end)
+
+    @staticmethod
+    def pageref(paragraph, bookmark_name: str, size=Pt(14), font=BODY_FONT) -> None:
+        """Append a ``PAGEREF`` field that Word resolves to a page number."""
+        def run(child):
+            r = OxmlElement("w:r")
+            rpr = OxmlElement("w:rPr")
+            rf = OxmlElement("w:rFonts")
+            rf.set(qn("w:ascii"), font); rf.set(qn("w:hAnsi"), font)
+            sz = OxmlElement("w:sz"); sz.set(qn("w:val"), str(int(size.pt * 2)))
+            rpr.append(rf); rpr.append(sz)
+            r.append(rpr); r.append(child)
+            return r
+
+        begin = OxmlElement("w:fldChar"); begin.set(qn("w:fldCharType"), "begin")
+        instr = OxmlElement("w:instrText"); instr.set(qn("xml:space"), "preserve")
+        instr.text = f" PAGEREF {bookmark_name} \\h "
+        sep = OxmlElement("w:fldChar"); sep.set(qn("w:fldCharType"), "separate")
+        placeholder = OxmlElement("w:t"); placeholder.text = "–"
+        end = OxmlElement("w:fldChar"); end.set(qn("w:fldCharType"), "end")
+        for child in (begin, instr, sep, placeholder, end):
+            paragraph._p.append(run(child))
+
+    def enable_field_update(self) -> None:
+        """Ask Word to refresh every field the first time the file is opened."""
+        settings = self.doc.settings.element
+        for existing in settings.findall(qn("w:updateFields")):
+            settings.remove(existing)
+        el = OxmlElement("w:updateFields")
+        el.set(qn("w:val"), "true")
+        settings.append(el)
 
     # ------------------------------------------------------------------ #
     # primitives
@@ -92,8 +149,9 @@ class ReportBuilder:
         """Centred Arial 28 pt chapter heading, as in the template."""
         if new_page:
             self.page_break()
-        self._para(title, size=H1_SIZE, font=HEAD_FONT,
-                   align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(18))
+        p = self._para(title, size=H1_SIZE, font=HEAD_FONT,
+                       align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(18))
+        self.bookmark(p, self.slug("_Ch_", title))
 
     def h2(self, title: str) -> None:
         self._para(title, size=H2_SIZE, bold=True, space_after=Pt(8))
@@ -163,13 +221,16 @@ class ReportBuilder:
 
         cap = self._para(f"Fig. {number}  {caption}", size=Pt(12), italic=True,
                          align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(14))
+        self.bookmark(cap, self.slug("_Fig_", number))
         self.figures.append((number, caption))
         return cap
 
     def table(self, number: str, caption: str, headers: list[str], rows: list[list[str]],
               col_widths: list[float] | None = None, font_size: int = 11) -> None:
-        self._para(f"Table {number}  {caption}", size=Pt(12), italic=True,
-                   align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(4))
+        cap = self._para(f"Table {number}  {caption}", size=Pt(12), italic=True,
+                         align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(4))
+        if number:
+            self.bookmark(cap, self.slug("_Tab_", number))
         t = self.doc.add_table(rows=1, cols=len(headers))
         t.style = "Table Grid"
         t.alignment = WD_TABLE_ALIGNMENT.CENTER

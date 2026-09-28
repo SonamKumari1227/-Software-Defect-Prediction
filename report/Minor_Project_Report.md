@@ -21,8 +21,8 @@ M.Tech. (CSE), 2nd Semester, Session 2025–2026
 
 **Under the guidance of**
 
-**[GUIDE NAME]**\
-[DESIGNATION], Department of Computer Science & Engineering
+**Ritesh Kumar Jha**\
+Assistant Professor (CS & IT), Department of Computer Science & Engineering
 
 **DEPARTMENT OF COMPUTER SCIENCE & ENGINEERING**\
 **NETAJI SUBHAS UNIVERSITY**\
@@ -42,7 +42,7 @@ The work embodied in this report has not been submitted to any other university 
 
 | | |
 |---|---|
-| **[GUIDE NAME]** | **[HOD NAME]** |
+| **Ritesh Kumar Jha** | **Lal Kishore Kumar** |
 | Project Guide | Head of Department |
 | Department of Computer Science & Engineering | Department of Computer Science & Engineering |
 | Netaji Subhas University, Jamshedpur | Netaji Subhas University, Jamshedpur |
@@ -59,7 +59,7 @@ Place: Jamshedpur
 
 ## DECLARATION
 
-I, **Sonam Kumari**, Registration No. NSU253121001, hereby declare that the Minor Project report entitled **"Software Defect Prediction using Machine Learning"** is an original work carried out by me under the guidance of **[GUIDE NAME]**, Department of Computer Science & Engineering, Netaji Subhas University, Jamshedpur.
+I, **Sonam Kumari**, Registration No. NSU253121001, hereby declare that the Minor Project report entitled **"Software Defect Prediction using Machine Learning"** is an original work carried out by me under the guidance of **Ritesh Kumar Jha**, Department of Computer Science & Engineering, Netaji Subhas University, Jamshedpur.
 
 I further declare that:
 
@@ -80,9 +80,9 @@ Place: Jamshedpur
 
 ## ACKNOWLEDGEMENT
 
-I express my sincere gratitude to my project guide, **[GUIDE NAME]**, [DESIGNATION], Department of Computer Science & Engineering, Netaji Subhas University, for continuous support, valuable suggestions and constructive criticism throughout this project. The regular discussions on experimental design and evaluation methodology were instrumental in shaping this work.
+I express my sincere gratitude to my project guide, **Ritesh Kumar Jha**, Assistant Professor (CS & IT), Department of Computer Science & Engineering, Netaji Subhas University, for continuous support, valuable suggestions and constructive criticism throughout this project. The regular discussions on experimental design and evaluation methodology were instrumental in shaping this work.
 
-I am grateful to **[HOD NAME]**, Head of the Department of Computer Science & Engineering, for providing the necessary facilities and an encouraging academic environment.
+I am grateful to **Lal Kishore Kumar**, Head of the Department of Computer Science & Engineering, for providing the necessary facilities and an encouraging academic environment.
 
 I also thank the faculty members of the department, particularly those teaching *Advanced Software Engineering* and *Soft Computing Techniques*, whose courses provided the conceptual foundation for this project.
 

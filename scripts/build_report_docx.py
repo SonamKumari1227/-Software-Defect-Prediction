@@ -19,7 +19,7 @@ from pathlib import Path
 import _bootstrap  # noqa: F401
 import pandas as pd
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Pt
+from docx.shared import Inches, Pt
 
 from docx_builder import ReportBuilder
 from sdp.utils import PROJECT_ROOT
@@ -28,14 +28,14 @@ FIG = PROJECT_ROOT / "report" / "figures"
 RESULTS = PROJECT_ROOT / "results"
 
 # --------------------------------------------------------------------------- #
-# Details that the department must confirm are marked like this.
+# Details of the candidate, the guide and the department.
 # --------------------------------------------------------------------------- #
 STUDENT = "SONAM KUMARI"
 REG_NO = "NSU253121001"
 ROLL_NO = "253121001"
-GUIDE = "[GUIDE NAME]"
-GUIDE_DESIG = "[DESIGNATION]"
-HOD = "[HOD NAME]"
+GUIDE = "Ritesh Kumar Jha"
+GUIDE_DESIG = "Assistant Professor (CS & IT)"
+HOD = "Lal Kishore Kumar"
 UNIVERSITY = "NETAJI SUBHAS UNIVERSITY"
 PLACE = "Jamshedpur"
 SESSION = "2025 - 2026"
@@ -74,7 +74,12 @@ def source(rel: str, start: int = 0, end: int | None = None) -> str:
 # =========================================================================== #
 # FRONT MATTER
 # =========================================================================== #
-def front_matter(b: ReportBuilder) -> None:
+def front_matter(b: ReportBuilder, minimal: bool = True) -> None:
+    """Title page and certificate.
+
+    When *minimal* is true the Declaration, Acknowledgement and Abstract pages are
+    omitted, which is the arrangement used by the departmental template.
+    """
     C = WD_ALIGN_PARAGRAPH.CENTER
 
     # ---------------- title page ----------------
@@ -116,21 +121,31 @@ def front_matter(b: ReportBuilder) -> None:
         "were obtained by executing the software developed as part of this project, which is submitted "
         "along with this report.")
     b.blank(3)
-    b._para("Signature", size=Pt(14), space_after=Pt(30))
-    b.blank(1)
 
-    p = b._para(space_after=Pt(4))
-    for text, gap in ((GUIDE, 46), (HOD, 40), ("", 0)):
-        if text:
-            r = p.add_run(text + " " * gap)
-            r.font.name = "Calibri"; r.font.size = Pt(14); r.bold = True
-    p2 = b._para(space_after=Pt(26))
-    r = p2.add_run("(Project Guide)" + " " * 44 + "(Head of Department)")
-    r.font.name = "Calibri"; r.font.size = Pt(14)
+    # Signature block as a borderless two-column table so that the names and
+    # their captions stay aligned whatever their length.
+    sig = b.doc.add_table(rows=4, cols=2)
+    sig.autofit = False
+    for row, (left, right, bold) in enumerate((
+            ("Signature", "Signature", False),
+            ("", "", False),
+            (GUIDE, HOD, True),
+            ("(Project Guide)", "(Head of Department)", False))):
+        for col, text in ((0, left), (1, right)):
+            cell = sig.rows[row].cells[col]
+            cell.width = Inches(3.1)
+            para = cell.paragraphs[0]
+            para.paragraph_format.space_after = Pt(2)
+            if text:
+                run = para.add_run(text)
+                run.font.name = "Calibri"; run.font.size = Pt(14); run.bold = bold
+    b._para(space_after=Pt(24))
 
-    b.blank(2)
     b._para("(External Examiner)", size=Pt(14), align=WD_ALIGN_PARAGRAPH.RIGHT, space_after=Pt(18))
     b._para(f"Date: ______________                              Place: {PLACE}", size=Pt(14))
+
+    if minimal:
+        return
 
     # ---------------- declaration ----------------
     b.chapter("DECLARATION")
@@ -235,51 +250,125 @@ def front_matter(b: ReportBuilder) -> None:
             align=WD_ALIGN_PARAGRAPH.JUSTIFY)
 
 
-def contents_page(b: ReportBuilder) -> None:
-    b.chapter("CONTENTS")
-    rows = [
-        ["", "Certificate", "i"], ["", "Declaration", "ii"], ["", "Acknowledgement", "iii"],
-        ["", "Abstract", "iv"], ["", "List of Figures", "vii"], ["", "List of Tables", "ix"],
-        ["", "List of Abbreviations", "x"],
-        ["1.", "Introduction", ""], ["2.", "Abstraction", ""], ["3.", "Objective", ""],
-        ["4.", "Literature Review", ""], ["5.", "Existing System and Proposed System", ""],
-        ["6.", "Modules", ""], ["7.", "Technology", ""], ["8.", "System Requirements", ""],
-        ["9.", "System Analysis", ""], ["10.", "Methodology", ""], ["11.", "DFD", ""],
-        ["12.", "ER Diagram and Data Model", ""], ["13.", "Testing", ""], ["14.", "Screenshots", ""],
-        ["15.", "Results and Analysis", ""], ["16.", "Coding", ""], ["17.", "Dataset Tables", ""],
-        ["18.", "Conclusion", ""], ["19.", "Future Scope", ""], ["20.", "Limitation", ""],
-        ["21.", "Bibliography", ""], ["", "Appendix A: Execution Instructions", ""],
-    ]
+#: Front-matter rows, listed only when the full front matter is built.
+FRONT_MATTER_ROWS = [
+    ("", "Certificate", "CERTIFICATE"),
+    ("", "Declaration", "DECLARATION"),
+    ("", "Acknowledgement", "ACKNOWLEDGEMENT"),
+    ("", "Abstract", "ABSTRACT"),
+    ("", "List of Figures", "LIST OF FIGURES"),
+    ("", "List of Tables", "LIST OF TABLES"),
+    # "List of Abbreviations" is listed from CONTENTS_ROWS in both modes.
+]
+
+#: Rows dropped from the Contents when the figure/table lists are not built.
+LIST_ROWS = {"List of Figures", "List of Tables"}
+
+#: (serial number, title as printed, heading the page number points at)
+CONTENTS_ROWS = [
+    ("1.", "Introduction", "Introduction"),
+    ("2.", "Abstraction", "Abstraction"),
+    ("3.", "Objective", "Objective"),
+    ("4.", "Literature Review", "Literature Review"),
+    ("5.", "Existing System and Proposed System", "Existing System and Proposed System"),
+    ("6.", "Modules", "Modules"),
+    ("7.", "Technology", "Technology"),
+    ("8.", "System Requirement", "System Requirement"),
+    ("9.", "System Analysis", "System Analysis"),
+    ("10.", "Methodology", "Methodology"),
+    ("11.", "DFD", "DFD"),
+    ("12.", "ER Diagram and Data Model", "ER Diagram and Data Model"),
+    ("13.", "Testing", "Testing"),
+    ("14.", "Screenshots", "Screenshots"),
+    ("15.", "Results and Analysis", "Results and Analysis"),
+    ("16.", "Coding", "Coding"),
+    ("17.", "Dataset Tables", "Dataset Tables"),
+    ("18.", "Conclusion", "Conclusion"),
+    ("19.", "Future Scope", "Future Scope"),
+    ("20.", "Limitation", "Limitation"),
+    ("21.", "Bibliography", "Bibliography"),
+    ("", "List of Abbreviations", "LIST OF ABBREVIATIONS"),
+    ("", "Appendix A: Execution Instructions", "Appendix A: Execution Instructions"),
+]
+
+
+def _ref_table(b: ReportBuilder, headers: list[str], rows: list[tuple],
+               widths: list[float], prefix: str, font_size: int = 14) -> None:
+    """A three-column table whose last column is a PAGEREF field.
+
+    Each row is (col1, col2, bookmark_target). Word fills in the page number
+    when the document is opened.
+    """
     t = b.doc.add_table(rows=1, cols=3)
     t.style = "Table Grid"
-    hdr = t.rows[0].cells
-    for i, h in enumerate(["S.NO", "Chapter", "Page.no"]):
-        hdr[i].text = ""
-        para = hdr[i].paragraphs[0]; para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = para.add_run(h); r.bold = True; r.font.name = "Calibri"; r.font.size = Pt(14)
-        b._shade(hdr[i], "D9E2F3")
-    for row in rows:
+    for i, h in enumerate(headers):
+        cell = t.rows[0].cells[i]
+        cell.text = ""
+        para = cell.paragraphs[0]
+        para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = para.add_run(h)
+        run.bold = True; run.font.name = "Calibri"; run.font.size = Pt(font_size)
+        b._shade(cell, "D9E2F3")
+
+    for col1, col2, target in rows:
         cells = t.add_row().cells
-        for i, val in enumerate(row):
+        for i, val in enumerate((col1, col2)):
             cells[i].text = ""
             para = cells[i].paragraphs[0]
-            para.alignment = WD_ALIGN_PARAGRAPH.CENTER if i != 1 else WD_ALIGN_PARAGRAPH.LEFT
-            r = para.add_run(val); r.font.name = "Calibri"; r.font.size = Pt(14)
-    b._para(space_after=Pt(6))
-    b._para("Page numbers are inserted after the document is paginated in the final printed copy.",
-            size=Pt(12), italic=True)
+            para.alignment = WD_ALIGN_PARAGRAPH.CENTER if i == 0 else WD_ALIGN_PARAGRAPH.LEFT
+            run = para.add_run(val)
+            run.font.name = "Calibri"; run.font.size = Pt(font_size)
+        page = cells[2]
+        page.text = ""
+        para = page.paragraphs[0]
+        para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        b.pageref(para, b.slug(prefix, target), size=Pt(font_size))
+
+    for r in t.rows:
+        for i, w in enumerate(widths):
+            r.cells[i].width = Inches(w)
+    b._para(space_after=Pt(8))
 
 
-def list_pages(b: ReportBuilder) -> None:
-    """List of Figures / Tables / Abbreviations - filled in after the body is built."""
-    b.chapter("LIST OF FIGURES")
-    rows = [[num, cap] for num, cap in b.figures]
-    b.table("", "", ["Figure No.", "Title"], rows, col_widths=[1.1, 5.1], font_size=11)
+def contents_page(b: ReportBuilder, minimal: bool = True,
+                  figure_and_table_lists: bool = True) -> None:
+    """Contents table.
 
-    b.chapter("LIST OF TABLES")
-    rows = [[num, cap] for num, cap in b.tables if num]
-    b.table("", "", ["Table No.", "Title"], rows, col_widths=[1.1, 5.1], font_size=11)
+    With *minimal* the table lists the numbered chapters only, beginning at
+    Introduction, which is how the departmental template arranges it.
+    """
+    b.chapter("CONTENTS")
+    rows = CONTENTS_ROWS if minimal else FRONT_MATTER_ROWS + CONTENTS_ROWS
+    if not figure_and_table_lists:
+        rows = [r for r in rows if r[1] not in LIST_ROWS]
+    _ref_table(b, ["S.NO", "Chapter", "Page.no"], rows, [0.8, 4.4, 1.0], "_Ch_")
+    b._para("Page numbers are generated automatically by Word. To refresh them, select the whole "
+            "document with Ctrl+A and press F9.", size=Pt(11), italic=True)
 
+
+def list_pages(b: ReportBuilder, figure_and_table_lists: bool = True) -> None:
+    """The List of Figures and List of Tables pages.
+
+    *figure_and_table_lists* may be turned off to match the departmental
+    template, whose front matter is only a title page, a certificate and the
+    contents. The List of Abbreviations is always produced, because the
+    Contents refers to it.
+    """
+    if figure_and_table_lists:
+        b.chapter("LIST OF FIGURES")
+        _ref_table(b, ["Figure No.", "Title", "Page.no"],
+                   [(num, cap, num) for num, cap in b.figures],
+                   [0.95, 4.35, 0.9], "_Fig_", font_size=11)
+
+        b.chapter("LIST OF TABLES")
+        _ref_table(b, ["Table No.", "Title", "Page.no"],
+                   [(num, cap, num) for num, cap in b.tables if num],
+                   [0.95, 4.35, 0.9], "_Tab_", font_size=11)
+
+
+
+def abbreviations_page(b: ReportBuilder) -> None:
+    """The List of Abbreviations, placed after the Bibliography."""
     b.chapter("LIST OF ABBREVIATIONS")
     abbr = [
         ("ARFF", "Attribute-Relation File Format"), ("AUC", "Area Under the Curve"),
@@ -304,7 +393,6 @@ def list_pages(b: ReportBuilder) -> None:
     ]
     b.table("", "", ["Abbreviation", "Expansion"], [[a, e] for a, e in abbr],
             col_widths=[1.9, 4.3], font_size=11)
-
 
 # =========================================================================== #
 # ASSEMBLY
@@ -335,6 +423,7 @@ def build_body(b: ReportBuilder, code_detail: str = "standard") -> None:
     B.ch19_future(b)
     B.ch20_limitation(b)
     B.ch21_bibliography(b)
+    abbreviations_page(b)
     B.appendix(b)
 
 
@@ -344,6 +433,14 @@ def main() -> None:
                     help="Departmental template supplying page setup, header and footer")
     ap.add_argument("--code-detail", choices=["brief", "standard", "full"], default="standard",
                     help="How much source code Chapter 16 reproduces; the main dial on page count")
+    ap.add_argument("--lists", choices=["all", "abbreviations-only"], default="all",
+                    help="all (default): build List of Figures, List of Tables and List "
+                         "of Abbreviations. abbreviations-only: omit the figure and table "
+                         "lists, as in the departmental template.")
+    ap.add_argument("--front-matter", choices=["minimal", "full"], default="minimal",
+                    help="minimal (default): title page, certificate and the three list pages, "
+                         "with the Contents beginning at Introduction, as in the departmental "
+                         "template. full: also adds Declaration, Acknowledgement and Abstract pages.")
     ap.add_argument("--output", default=str(PROJECT_ROOT / "report" / "Minor_Project_Report.docx"))
     args = ap.parse_args()
 
@@ -359,12 +456,15 @@ def main() -> None:
 
     # Pass 2 - the real document.
     b = ReportBuilder(template)
-    front_matter(b)
-    contents_page(b)
+    minimal = args.front_matter == "minimal"
+    all_lists = args.lists == "all"
+    front_matter(b, minimal)
+    contents_page(b, minimal, all_lists)
     b.figures, b.tables = list(figures), list(tables)
-    list_pages(b)
+    list_pages(b, all_lists)
     build_body(b, args.code_detail)
 
+    b.enable_field_update()   # Word resolves every PAGEREF when the file opens
     out = b.save(args.output)
     pages = b.estimate_pages()
     print(f"written  : {out}")

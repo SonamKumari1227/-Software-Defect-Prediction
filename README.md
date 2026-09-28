@@ -45,6 +45,9 @@ software-defect-prediction/
 │   ├── visualization.py        # every figure used in the report
 │   └── eda.py                  # exploratory data analysis driver
 │
+├── app/
+│   └── streamlit_app.py        # interactive web interface (manual metric entry)
+│
 ├── scripts/                    # command-line entry points
 │   ├── download_data.py        # fetch datasets into data/raw/
 │   ├── run_eda.py              # summary statistics + EDA figures
@@ -52,7 +55,8 @@ software-defect-prediction/
 │   └── predict.py              # score new modules with a saved model
 │
 ├── tests/
-│   └── test_pipeline.py        # pytest unit + smoke tests
+│   ├── test_pipeline.py        # pytest unit + smoke tests for the pipeline
+│   └── test_app.py             # tests for the web interface logic
 │
 ├── data/
 │   ├── raw/                    # downloaded .arff files (git-ignored)
@@ -116,7 +120,10 @@ python scripts/run_eda.py --all            # or: --dataset KC1
 # Step 3 - train, cross-validate and evaluate every model
 python scripts/run_pipeline.py --all       # or: --dataset KC1
 
-# Step 4 (optional) - run the tests
+# Step 4 - launch the interactive web interface
+streamlit run app/streamlit_app.py        # opens on http://localhost:8501
+
+# Step 5 (optional) - run the tests
 python -m pytest -q
 ```
 

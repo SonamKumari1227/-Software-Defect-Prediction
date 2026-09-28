@@ -17,5 +17,9 @@ pyyaml>=6.0
 tabulate>=0.9
 requests>=2.31
 
+# Web interface
+streamlit>=1.30
+
 # Testing
 pytest>=7.4
+playwright>=1.40          # only needed to recapture the application screenshots

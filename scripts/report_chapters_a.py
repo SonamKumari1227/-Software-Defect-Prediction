@@ -479,6 +479,10 @@ def ch5_existing_proposed(b: ReportBuilder) -> None:
         "verified.",
         "The predictions are auditable, since feature-importance analysis shows which metrics drive "
         "the model's behaviour.",
+        "The system is usable without programming knowledge. In addition to the command-line tools, "
+        "an interactive web interface allows a reviewer to enter the metrics of a single module and "
+        "obtain a prediction immediately, which is what makes the work a usable tool rather than "
+        "only an experiment.",
     ])
     b.h3("5.2.2  Comparison")
     b.table("5.1", "Comparison between the existing practice and the proposed system",
@@ -579,14 +583,48 @@ def ch6_modules(b: ReportBuilder) -> None:
         "predict.py loads a previously trained pipeline and scores a file of module metrics supplied by "
         "the user, appending a defect probability and a binary prediction.",
         "make_report_figures.py and make_extra_figures.py regenerate the diagrams and analyses "
-        "reproduced in this report.",
+        "reproduced in this report, and capture_app_screenshots.py captures the interface figures "
+        "of Chapter 14.",
     ])
+    b.p("The web interface is started separately, with the command "
+        "streamlit run app/streamlit_app.py, which serves the application on the local machine at "
+        "port 8501.")
 
-    b.h2("6.10  Test Module")
+    b.h2("6.10  Web Application Module")
+    b.p("The command-line tools described above serve the experiment, but they assume a user who is "
+        "comfortable with a terminal and who already holds the metrics of a module in a file. To make "
+        "the trained models usable by a developer or a reviewer directly, a web application was "
+        "implemented with the Streamlit framework and is contained in app/streamlit_app.py.")
+    b.p("The application presents an interactive form in which every metric required by the selected "
+        "model is entered by hand, and returns the predicted defect probability together with the "
+        "resulting classification. Its responsibilities are as follows.")
+    b.bullets([
+        "Loading a previously trained pipeline from the results directory, together with the cleaned "
+        "training data that supplies the default values and the reference statistics. Both are cached, "
+        "so the model is deserialised once rather than on every interaction.",
+        "Presenting the metrics as a form, grouped into size measures, McCabe complexity measures, "
+        "Halstead vocabulary counts and Halstead derived measures, each field carrying a short "
+        "explanation of the quantity it holds and being bounded by the range observed in the "
+        "training data.",
+        "Deriving the eight dependent Halstead measures from the four basic operator and operand "
+        "counts, so that the values the user submits remain mutually consistent. This is offered as "
+        "an option and can be switched off if the measures are already known.",
+        "Allowing the training dataset, the classifier and the decision threshold to be selected, so "
+        "that the effect of the operating point discussed in Section 15.6 can be explored directly.",
+        "Reporting the outcome as a verdict, a probability, a risk band and a graphical gauge, and "
+        "placing the entered module in context by tabulating each metric against the median and the "
+        "percentile of the training data.",
+    ])
+    b.p("The application is a presentation layer only. It contains no modelling logic of its own; it "
+        "loads the same serialised pipeline that the experiment produced, so the preprocessing applied "
+        "to a hand-entered module is by construction identical to that applied during training.")
+
+    b.h2("6.11  Test Module")
     b.p("The test module contains the automated test suite described in Chapter 13. It exercises the "
         "parser, the target encoding, the cleaning operations, the stratification, the metric "
         "computations, the end-to-end training of every registered classifier under all three balancing "
-        "modes, and the determinism of repeated runs.")
+        "modes, the determinism of repeated runs, the Halstead derivations used by the web form and "
+        "the ability of a saved pipeline to score a single hand-entered module.")
 
     b.table("6.1", "Summary of the implemented modules",
             ["Module", "Responsibility", "Lines"],
@@ -602,7 +640,9 @@ def ch6_modules(b: ReportBuilder) -> None:
              ["scripts/run_eda.py", "Exploratory analysis command", "37"],
              ["scripts/run_pipeline.py", "Training and evaluation command", "188"],
              ["scripts/predict.py", "Scoring of previously unseen modules", "59"],
-             ["tests/test_pipeline.py", "Automated test suite", "119"]],
+             ["app/streamlit_app.py", "Interactive web interface for manual entry", "300"],
+             ["tests/test_pipeline.py", "Automated test suite for the pipeline", "119"],
+             ["tests/test_app.py", "Automated test suite for the web interface", "95"]],
             col_widths=[1.9, 3.5, 0.8], font_size=11)
 
 
@@ -680,32 +720,54 @@ def ch7_technology(b: ReportBuilder) -> None:
         "descriptions, so that the diagrams are regenerated automatically whenever the design changes.",
     ])
 
-    b.h2("7.7  The Algorithms")
+    b.h2("7.7  Streamlit")
+    b.p("Streamlit is an open-source framework for building data applications in pure Python. It was "
+        "chosen for the web interface described in Section 6.10 in preference to a conventional web "
+        "stack for three reasons. It requires no HTML, CSS or JavaScript, so the interface is written "
+        "in the same language as the rest of the system and can import the project's own modules "
+        "directly, which removes any risk of the interface and the experiment diverging. It provides "
+        "the widgets this application needs, namely numeric inputs, selection boxes, sliders and "
+        "forms, as single function calls. And it has a caching mechanism that keeps the deserialised "
+        "model and the reference dataset in memory between interactions, so a prediction returns "
+        "immediately rather than reloading a pipeline each time.")
+    b.p("A Streamlit script is re-executed from top to bottom on every interaction, and the widget "
+        "values are held in a session state that persists across those runs. This model is simple but "
+        "has one consequence that had to be handled explicitly: once a numeric field has been given "
+        "an identity in the session state, a later change to its default value is ignored, because "
+        "the stored value takes precedence. The application therefore writes the new starting values "
+        "into the session state itself whenever the dataset or the preset is changed, before the "
+        "widgets are created. Without this the preset buttons would appear to work while leaving the "
+        "entered values untouched.")
+    b.p("The framework serves the application over HTTP on the local machine. No data leaves the "
+        "machine on which it runs, which matters if the metrics being scored describe proprietary "
+        "source code.")
+
+    b.h2("7.8  The Algorithms")
     b.p("Eight classification algorithms are compared. They are described here in outline; their "
         "configured hyper-parameters are given in Chapter 10.")
-    b.h3("7.7.1  Logistic Regression")
+    b.h3("7.8.1  Logistic Regression")
     b.p("Logistic Regression models the log-odds of the positive class as a linear combination of the "
         "features and is fitted by maximising the penalised likelihood. It is fast, its coefficients "
         "are directly interpretable as the effect of each metric on the log-odds of defectiveness, and "
         "it provides a natural baseline against which non-linear models are judged.")
-    b.h3("7.7.2  Decision Tree")
+    b.h3("7.8.2  Decision Tree")
     b.p("A decision tree recursively partitions the feature space by selecting, at each node, the "
         "feature and threshold that best separate the classes according to an impurity criterion. Trees "
         "are highly interpretable and require no feature scaling, but a single tree has high variance: "
         "small changes in the training data can produce a substantially different tree.")
-    b.h3("7.7.3  Random Forest")
+    b.h3("7.8.3  Random Forest")
     b.p("Random Forest, introduced by Breiman in 2001, addresses the variance of a single tree by "
         "constructing many trees on bootstrap resamples of the training data and restricting each split "
         "to a random subset of the features. Averaging the predictions of the resulting de-correlated "
         "trees reduces variance substantially without a corresponding increase in bias.")
-    b.h3("7.7.4  Gradient Boosting")
+    b.h3("7.8.4  Gradient Boosting")
     b.p("Gradient Boosting, formalised by Friedman in 2001, also builds an ensemble of trees but does "
         "so sequentially. Each new tree is fitted to the negative gradient of the loss function with "
         "respect to the current ensemble prediction, so that successive trees concentrate on the "
         "instances that the ensemble currently handles worst. The trees are deliberately shallow and "
         "their contributions are scaled by a small learning rate. Gradient boosting typically attains "
         "lower bias than bagging but is more sensitive to noise and to hyper-parameter settings.")
-    b.h3("7.7.5  Support Vector Machine")
+    b.h3("7.8.5  Support Vector Machine")
     b.p("The Support Vector Machine of Cortes and Vapnik seeks the hyperplane that separates the "
         "classes with the largest margin, admitting a controlled number of violations. Applying a "
         "radial basis function kernel allows a non-linear boundary to be constructed implicitly in a "
@@ -713,19 +775,19 @@ def ch7_technology(b: ReportBuilder) -> None:
         "probability, the implementation used here wraps it in a calibration stage that converts the "
         "distance into a probability, so that the receiver operating characteristic and "
         "precision-recall curves can be computed consistently with the other models.")
-    b.h3("7.7.6  k-Nearest Neighbours")
+    b.h3("7.8.6  k-Nearest Neighbours")
     b.p("The k-nearest-neighbours classifier stores the training set and classifies a new instance by a "
         "weighted vote among its k closest training instances. It makes no assumption about the form of "
         "the decision boundary, but it is sensitive to the scale of the features, which is one reason "
         "the standardisation step in the pipeline matters.")
-    b.h3("7.7.7  Gaussian Naive Bayes")
+    b.h3("7.8.7  Gaussian Naive Bayes")
     b.p("Gaussian Naive Bayes applies Bayes' theorem under the assumption that the features are "
         "conditionally independent given the class and that each follows a normal distribution within "
         "each class. The independence assumption is plainly violated by these highly collinear metrics, "
         "yet the classifier frequently performs competitively because its very low variance is an "
         "advantage on small, noisy datasets. This is the classifier that Menzies and colleagues found "
         "most effective in their 2007 study.")
-    b.h3("7.7.8  Multi-Layer Perceptron")
+    b.h3("7.8.8  Multi-Layer Perceptron")
     b.p("The multi-layer perceptron is a feed-forward neural network with one or more hidden layers of "
         "non-linear units, trained by backpropagation of error. Two hidden layers are used here. Early "
         "stopping on a held-out portion of the training data is enabled to limit overfitting, which is "
@@ -745,8 +807,9 @@ def ch8_requirements(b: ReportBuilder) -> None:
         ("Core libraries", "NumPy 2.2, pandas 2.2, SciPy 1.18"),
         ("Machine learning", "scikit-learn 1.9, imbalanced-learn 0.14"),
         ("Visualisation", "matplotlib 3.11, seaborn 0.13"),
+        ("Web interface", "Streamlit 1.64"),
         ("Configuration and persistence", "PyYAML 6.0, joblib 1.6"),
-        ("Testing framework", "pytest 9.1"),
+        ("Testing framework", "pytest 9.1, Playwright 1.55"),
         ("Diagram rendering", "Graphviz 12.2"),
         ("Document preparation", "Microsoft Word 2016 or later"),
     ])
@@ -787,6 +850,8 @@ def ch8_requirements(b: ReportBuilder) -> None:
         "The system shall persist every fitted model and export all results in both CSV and JSON form.",
         "The system shall generate the figures required for analysis without requiring a display.",
         "The system shall score a user-supplied file of module metrics using a previously trained model.",
+        "The system shall provide an interactive web interface in which the metrics of a single module are entered by hand and the predicted defect probability and classification are displayed.",
+        "The web interface shall allow the training dataset, the classifier and the decision threshold to be selected, and shall derive the dependent Halstead measures from the basic operator and operand counts.",
     ])
 
     b.h2("8.4  Non-Functional Requirements")
